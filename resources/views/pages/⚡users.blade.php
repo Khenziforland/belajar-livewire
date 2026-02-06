@@ -3,19 +3,20 @@
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\Attributes\Validate;
+use Livewire\WithPagination;
 
 use App\Models\User;
 
 new class extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithPagination;
+
+    protected $paginationTheme = 'bootstrap';
 
     public $name = '';
     public $email = '';
     public $password = '';
     public $avatar = null;
-
-    public $users;
 
     public function addUser()
     {
@@ -39,8 +40,6 @@ new class extends Component
             'avatar' => $validated['avatar'],
         ]);
 
-        $this->users = User::orderBy('id', 'desc')->get();
-
         $this->reset(['name', 'email', 'password', 'avatar']);
 
         session()->flash('success', 'User successfully added.');
@@ -48,7 +47,7 @@ new class extends Component
 
     public function mount()
     {
-        $this->users = User::orderBy('id', 'desc')->get();
+        
     }
 };
 ?>
@@ -94,24 +93,53 @@ new class extends Component
                 <span class="text-danger">{{ $message }}</span>
             @enderror
 
-            {{-- @if ($avatar)
-                <img src="{{ $avatar->temporaryUrl() }}" class="img-fluid mt-3">
-            @endif --}}
+            <div wire:loading wire:target="avatar" class="spinner-border" role="status">
+                <span class="sr-only"></span>
+            </div>
+
+            @if ($avatar)
+                <p class="my-2 small fw-medium">Preview:</p>
+                <img src="{{ $avatar->temporaryUrl() }}" class="rounded" style="width: 10rem; height: 10rem; object-fit: cover; display: block;">
+            @endif
         </div>
 
         <div class="form-group mt-3">
-            <button class="btn btn-primary">Add User</button>
+            <button class="btn btn-primary" wire:loading.attr="disabled">
+                <span wire:loading wire:target="addUser" class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="sr-only"></span>
+                </span>
+                <span wire:loading.remove wire:target="addUser">Add User</span>
+                <span wire:loading wire:target="addUser">Processing...</span>
+            </button>
         </div>
     </form>
 
     <hr class="border border-primary border-2">
 
     <h2 class="fw-semibold">User List</h2>
-    <ul class="list-group ">
+
+    @php
+        $users = App\Models\User::orderBy('id', 'desc')->paginate(6);
+    @endphp
+
+    {{-- List of All User --}}
+    <div class="list-group">
         @foreach ($users as $user)
-            <li class="list-group-item">{{ $user->name }}</li>
+            <button type="button" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <img src="{{ $user->avatar ? Storage::url($user->avatar) : asset('img/default-avatar.jpg') }}" class="rounded-circle me-3" width="50" height="50">
+                    <div class="d-flex flex-column">
+                        <span class="fw-medium">{{ $user->name }}</span>
+                        <span class="text-muted small">{{ $user->email }}</span>
+                    </div>
+                </div>
+
+                <span class="text-muted small">Joined {{ $user->created_at->diffForHumans() }}</span>
+            </button>
         @endforeach
-    </ul>
+
+        {{ $users->links() }}
+    </div>
 
 
 </div>
